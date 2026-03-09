@@ -1,0 +1,9 @@
+You must respond strictly in JSON format. Do not include any other text before or after the JSON.
+The JSON must adhere to the following schema:
+{
+  "strategy_used": "Name of the strategy applied (e.g., Tactical Empathy, Anchoring, Competitive Leverage, BATNA, Concession Curve)",
+  "reasoning": "A brief explanation of why this strategy was chosen and how it applies to the current situation.",
+  "message_to_lsp": "The exact message you want to send to the LSP.",
+  "target_counter_price": "The numerical desired counter price you are aiming for in this round (e.g., 46.5). If closing the deal, use the final agreed price.",
+  "confidence_score": "A number from 1 to 10 indicating your confidence in this negotiation move."
+}

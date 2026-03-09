@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Negotiation Intelligence Panel</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center;}
+        .container { max-width: 800px; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .full-width { grid-column: 1 / -1; }
+        h2 { margin-top: 0; color: #2c3e50; font-size: 1.2rem; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+        label { display: block; margin-top: 10px; font-weight: bold; font-size: 0.9rem;}
+        input, select { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { margin-top: 20px; width: 100%; background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: 0.3s; }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .insights-panel { background-color: #2c3e50; color: white; }
+        .insights-panel h2 { border-bottom-color: #34495e; color: white; }
+        .metric { font-size: 1.2rem; margin: 10px 0; }
+        .metric span { font-weight: bold; color: #2ecc71; }
+        .strategy-list { list-style: none; padding: 0; }
+        .strategy-list li { margin: 5px 0; }
+        .strategy-list li::before { content: "✔"; color: #2ecc71; margin-right: 8px; font-weight: bold;}
+        .log-box { max-height: 300px; overflow-y: auto; background-color: #ecf0f1; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem;}
+        .log-entry { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #bdc3c7;}
+        .role-ai { color: #2980b9; font-weight: bold;}
+        .role-lsp { color: #c0392b; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>Shipment Parameters</h2>
+        <label>Shipment Context</label>
+        <input type="text" id="context" value="Mumbai to Delhi, 14 Tons, Normal Delivery">
+        
+        <label>Market Benchmark (₹/km)</label>
+        <input type="number" id="market_benchmark" value="48.0">
+        
+        <label>Target Price (₹/km)</label>
+        <input type="number" id="target_price" value="45.0">
+        
+        <label>Reservation Price / Walk-away (₹/km)</label>
+        <input type="number" id="reservation_price" value="50.0">
+        
+        <label>Competitor Prices (comma-separated ₹/km)</label>
+        <input type="text" id="competitor_prices" value="47.5, 49.0">
+        
+        <label>Initial LSP Offer (₹/km)</label>
+        <input type="number" id="initial_lsp_offer" value="52.0">
+        
+        <label>Max Rounds</label>
+        <input type="number" id="max_rounds" value="4">
+        
+        <button id="startBtn" onclick="startNegotiation()">Start Negotiation</button>
+    </div>
+
+    <div class="card insights-panel">
+        <h2>Negotiation Intelligence Panel</h2>
+        
+        <div>
+            <p><strong>Strategy Used:</strong></p>
+            <ul class="strategy-list" id="strategy-list">
+                <!-- Strategies injected here -->
+            </ul>
+        </div>
+        
+        <div class="metric">Rounds Completed: <span id="out-rounds">-</span></div>
+        <div class="metric">Final Status: <span id="out-status">-</span></div>
+        <div class="metric">Initial Offer: <span>₹<span id="out-initial">-</span>/km</span></div>
+        <div class="metric">Final Deal: <span>₹<span id="out-final">-</span>/km</span></div>
+        <div class="metric">Savings: <span id="out-savings">-</span>%</div>
+    </div>
+    
+    <div class="card full-width">
+        <h2>Live Negotiation Log</h2>
+        <div class="log-box" id="log-box">
+            Awaiting negotiation start...
+        </div>
+    </div>
+</div>
+
+<script>
+    async function startNegotiation() {
+        const btn = document.getElementById('startBtn');
+        const logBox = document.getElementById('log-box');
+        btn.disabled = true;
+        btn.innerText = "Negotiating (May take 30-60s)...";
+        logBox.innerHTML = "Initializing agent reasoning loop...<br>";
+        
+        // reset ui
+        document.getElementById('strategy-list').innerHTML = '';
+        document.getElementById('out-rounds').innerText = '-';
+        document.getElementById('out-status').innerText = '-';
+        document.getElementById('out-initial').innerText = document.getElementById('initial_lsp_offer').value;
+        document.getElementById('out-final').innerText = '-';
+        document.getElementById('out-savings').innerText = '-';
+        
+        const payload = {
+            shipment_context: document.getElementById('context').value,
+            market_benchmark: parseFloat(document.getElementById('market_benchmark').value),
+            target_price: parseFloat(document.getElementById('target_price').value),
+            reservation_price: parseFloat(document.getElementById('reservation_price').value),
+            competitor_prices: document.getElementById('competitor_prices').value.split(',').map(n => parseFloat(n.trim())),
+            initial_lsp_offer: parseFloat(document.getElementById('initial_lsp_offer').value),
+            max_rounds: parseInt(document.getElementById('max_rounds').value)
+        };
+
+        try {
+            const response = await fetch('/api/negotiate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === "error" || !data.negotiation_insights) {
+                logBox.innerHTML += `<span style="color:red">Error: ${JSON.stringify(data)}</span>`;
+                btn.disabled = false;
+                btn.innerText = "Start Negotiation";
+                return;
+            }
+            
+            const insights = data.negotiation_insights;
+            
+            // Populate Intelligence Panel
+            document.getElementById('out-status').innerText = insights.final_status;
+            document.getElementById('out-rounds').innerText = insights.total_rounds;
+            document.getElementById('out-final').innerText = insights.agreed_price ? insights.agreed_price : 'N/A';
+            document.getElementById('out-savings').innerText = insights.savings_percentage ? insights.savings_percentage.toFixed(1) : '0.0';
+            
+            const strategies = new Set();
+            let logHtml = "";
+            
+            insights.rounds_data.forEach(r => {
+                if(r.strategy) strategies.add(r.strategy);
+                
+                logHtml += `
+                    <div class="log-entry">
+                        <strong>Round ${r.round}</strong><br>
+                        <span class="role-ai">AI (Agent):</span> ${r.ai_message} <br>
+                        <small><em>[Internal Target Counter: ₹${r.target_counter}, Strategy: ${r.strategy}]</em></small><br><br>
+                        <span class="role-lsp">LSP (Counterpart):</span> ${r.lsp_message} <br>
+                        <small><em>[Extracted Price: ₹${r.lsp_price}]</em></small>
+                    </div>
+                `;
+            });
+            
+            const stratList = document.getElementById('strategy-list');
+            strategies.forEach(s => {
+                const li = document.createElement('li');
+                li.innerText = s;
+                stratList.appendChild(li);
+            });
+            
+            logBox.innerHTML = logHtml;
+            
+        } catch (error) {
+            logBox.innerHTML += `<span style="color:red">Network Error: ${error}</span>`;
+        }
+        
+        btn.disabled = false;
+        btn.innerText = "Start Negotiation";
+    }
+</script>
+
+</body>
+</html>

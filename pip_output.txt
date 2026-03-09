@@ -1,0 +1,34 @@
+Requirement already satisfied: fastapi in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (0.135.1)
+Requirement already satisfied: uvicorn in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (0.41.0)
+Requirement already satisfied: pydantic in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (2.12.5)
+Collecting python-dotenv
+  Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+Collecting groq
+  Downloading groq-1.0.0-py3-none-any.whl.metadata (16 kB)
+Requirement already satisfied: requests in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (2.32.5)
+Requirement already satisfied: starlette>=0.46.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from fastapi) (0.52.1)
+Requirement already satisfied: typing-extensions>=4.8.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from fastapi) (4.15.0)
+Requirement already satisfied: typing-inspection>=0.4.2 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from fastapi) (0.4.2)
+Requirement already satisfied: annotated-doc>=0.0.2 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from fastapi) (0.0.4)
+Requirement already satisfied: click>=7.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from uvicorn) (8.3.1)
+Requirement already satisfied: h11>=0.8 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from uvicorn) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from pydantic) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from pydantic) (2.41.5)
+Requirement already satisfied: anyio<5,>=3.5.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from groq) (4.12.0)
+Requirement already satisfied: distro<2,>=1.7.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from groq) (1.9.0)
+Requirement already satisfied: httpx<1,>=0.23.0 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from groq) (0.28.1)
+Requirement already satisfied: sniffio in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from groq) (1.3.1)
+Requirement already satisfied: idna>=2.8 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from anyio<5,>=3.5.0->groq) (3.11)
+Requirement already satisfied: certifi in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from httpx<1,>=0.23.0->groq) (2025.11.12)
+Requirement already satisfied: httpcore==1.* in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from httpx<1,>=0.23.0->groq) (1.0.9)
+Requirement already satisfied: charset_normalizer<4,>=2 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from requests) (3.4.4)
+Requirement already satisfied: urllib3<3,>=1.21.1 in c:\users\samyak\appdata\local\programs\python\python314\lib\site-packages (from requests) (2.6.2)
+Requirement already satisfied: colorama in c:\users\samyak\appdata\roaming\python\python314\site-packages (from click>=7.0->uvicorn) (0.4.6)
+Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Downloading groq-1.0.0-py3-none-any.whl (138 kB)
+Installing collected packages: python-dotenv, groq
+
+Successfully installed groq-1.0.0 python-dotenv-1.2.2
+
+[notice] A new release of pip is available: 25.2 -> 26.0.1
+[notice] To update, run: python.exe -m pip install --upgrade pip

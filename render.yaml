@@ -1,0 +1,43 @@
+services:
+  # AI Engineering Service (Python/FastAPI)
+  - type: web
+    name: negotiara-ai-engine
+    env: python
+    buildCommand: cd ai-engine && pip install -r requirements.txt
+    startCommand: cd ai-engine && uvicorn app:app --host 0.0.0.0 --port 8000
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: llama3-8b-8192
+
+  # Backend Service (Node/Express)
+  - type: web
+    name: negotiara-backend
+    env: node
+    buildCommand: cd backend && npm install && npx prisma generate
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: AI_ENGINE_URL
+        fromService:
+          name: negotiara-ai-engine
+          type: web
+          property: host
+        path: /api/negotiate
+
+  # Frontend Service (Next.js)
+  - type: web
+    name: negotiara-frontend
+    env: node
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: negotiara-backend
+          type: web
+          property: host

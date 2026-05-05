@@ -3,8 +3,8 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
 
 const generateToken = (id, role) => {
-    return jwt.sign({ id, role }, process.env.JWT_SECRET || 'negotiara_secret', {
-        expiresIn: '30d',
+    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+        expiresIn: '7d',
     });
 };
 
@@ -37,7 +37,8 @@ exports.register = async (req, res) => {
             token: generateToken(user.id, user.role),
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Register error:', error.message);
+        res.status(500).json({ message: 'Registration failed. Please try again.' });
     }
 };
 
@@ -59,6 +60,7 @@ exports.login = async (req, res) => {
             res.status(401).json({ message: 'Invalid email or password' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login error:', error.message);
+        res.status(500).json({ message: 'Login failed. Please try again.' });
     }
 };

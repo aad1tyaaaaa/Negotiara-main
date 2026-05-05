@@ -13,7 +13,7 @@ enum Role {
   ADMIN
 }
 
-enum NegotiaraStatus {
+enum NegotiationStatus {
   OPEN
   IN_PROGRESS
   COMPLETED
@@ -53,7 +53,7 @@ model Negotiation {
   shipmentId      String
   shipperId       String
   carrierId       String?         // Optional initially (RFQ stage)
-  status          NegotiaraStatus @default(OPEN)
+  status          NegotiationStatus @default(OPEN)
   
   // Pricing & Budget Boundaries
   basePrice       Float           // Initial starting point
@@ -78,6 +78,10 @@ model Negotiation {
   shipper         User            @relation("ShipperNegotiations", fields: [shipperId], references: [id])
   carrier         User?           @relation("CarrierNegotiations", fields: [carrierId], references: [id])
   offers          Offer[]
+
+  @@index([shipperId])
+  @@index([carrierId])
+  @@index([status])
 }
 
 model Offer {
@@ -97,4 +101,6 @@ model Offer {
   createdAt      DateTime    @default(now())
 
   negotiation    Negotiation @relation(fields: [negotiationId], references: [id])
+
+  @@index([negotiationId])
 }

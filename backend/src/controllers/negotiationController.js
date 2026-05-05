@@ -38,7 +38,7 @@ const startNegotiation = async (req, res) => {
             }
         });
 
-        // 3. Trigger AI Engine Simulation
+        // 3. Trigger AI Engine Simulation (with timeout)
         const aiResponse = await axios.post(AI_ENGINE_URL, {
             shipment: shipment,
             shipper_metrics: shipper_metrics,
@@ -46,7 +46,7 @@ const startNegotiation = async (req, res) => {
             market_signals: market_signals,
             strategy_profile: strategyProfile || 'Collaborative',
             max_rounds: negotiation.maxRounds
-        });
+        }, { timeout: 60000 });
 
         const simulationResults = aiResponse.data;
 
@@ -85,10 +85,10 @@ const startNegotiation = async (req, res) => {
 
     } catch (error) {
         console.error('Negotiation Error:', error.message);
+        const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({
-            message: 'Failed to execute negotiation',
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            message: 'Failed to execute negotiation.',
+            ...(isDev && { detail: error.message }),
         });
     }
 };
@@ -167,7 +167,7 @@ const negotiateStep = async (req, res) => {
             });
         }
 
-        // 3. Call AI Engine Step
+        // 3. Call AI Engine Step (with timeout)
         const aiStepResponse = await axios.post(`${AI_ENGINE_URL}/step`, {
             context: {
                 shipment: negotiation.shipment,
@@ -195,6 +195,12 @@ const negotiateStep = async (req, res) => {
             }
         });
 
+        // 5. Increment currentRound
+        await prisma.negotiation.update({
+            where: { id: negotiationId },
+            data: { currentRound: { increment: 1 } }
+        });
+
         // 5. Broadcast real-time update via Socket.io
         const io = req.app.get('io');
         const payload = {
@@ -210,7 +216,11 @@ const negotiateStep = async (req, res) => {
 
     } catch (error) {
         console.error('Negotiate Step Error:', error.message);
-        res.status(500).json({ message: 'Failed to generate negotiation step', error: error.message });
+        const isDev = process.env.NODE_ENV === 'development';
+        res.status(500).json({
+            message: 'Failed to generate negotiation step.',
+            ...(isDev && { detail: error.message }),
+        });
     }
 };
 

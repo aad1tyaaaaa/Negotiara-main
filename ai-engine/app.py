@@ -4,12 +4,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from api.negotiation_routes import router as negotiation_router
 import uvicorn
+import os
 
 app = FastAPI(title="AI Negotiation Engine")
 
+ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "http://localhost:4000")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[ALLOWED_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

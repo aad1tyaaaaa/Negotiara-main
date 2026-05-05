@@ -10,24 +10,38 @@ import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import { negotiationApi } from "@/lib/api";
 
+interface Metrics {
+    activeCount: number;
+    winRate: number;
+    avgSavings: number;
+    totalWeight: number;
+}
+
 export default function ShipperDashboard() {
     const { user } = useAuthStore();
     const router = useRouter();
     const [negotiations, setNegotiations] = useState<any[]>([]);
+    const [metrics, setMetrics] = useState<Metrics | null>(null);
+    const [metricsLoading, setMetricsLoading] = useState(true);
 
     useEffect(() => {
         if (!user || user.role !== "SHIPPER") {
             router.push("/auth/login");
-        } else {
-            negotiationApi.getHistory()
-                .then((data) => setNegotiations(data))
-                .catch((err) => console.error("Failed to fetch negotiations:", err));
+            return;
         }
+
+        negotiationApi.getHistory()
+            .then((data) => setNegotiations(data))
+            .catch((err) => console.error("Failed to fetch negotiations:", err));
+
+        setMetricsLoading(true);
+        negotiationApi.getMetrics()
+            .then((data) => setMetrics(data))
+            .catch((err) => console.error("Failed to fetch metrics:", err))
+            .finally(() => setMetricsLoading(false));
     }, [user, router]);
 
     if (!user) return null;
-
-    const activeCount = negotiations.filter(n => n.status === "IN_PROGRESS").length;
 
     return (
         <div className="py-8 md:py-12 px-4 sm:px-6 md:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-10 bg-background text-foreground">
@@ -45,10 +59,30 @@ export default function ShipperDashboard() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-                <StatCard icon={<TrendingUp className="text-primary w-6 h-6" />} title="Avg. Savings" value="14.2%" trend="+2.1%" />
-                <StatCard icon={<Clock className="text-muted-foreground w-6 h-6" />} title="Active RFQs" value={activeCount.toString()} trend={`${activeCount} pending`} />
-                <StatCard icon={<Shield className="text-primary w-6 h-6" />} title="Win Rate" value="92%" trend="Stable" />
-                <StatCard icon={<Package className="text-primary w-6 h-6" />} title="Total Goods" value="420t" trend="+12t" />
+                <StatCard
+                    icon={<TrendingUp className="text-primary w-6 h-6" />}
+                    title="Avg. Savings"
+                    value={metricsLoading ? "—" : `${metrics?.avgSavings ?? 0}%`}
+                    trend={metricsLoading ? "Loading..." : `${metrics?.avgSavings ?? 0}% vs market`}
+                />
+                <StatCard
+                    icon={<Clock className="text-muted-foreground w-6 h-6" />}
+                    title="Active RFQs"
+                    value={metricsLoading ? "—" : String(metrics?.activeCount ?? 0)}
+                    trend={metricsLoading ? "Loading..." : `${metrics?.activeCount ?? 0} pending`}
+                />
+                <StatCard
+                    icon={<Shield className="text-primary w-6 h-6" />}
+                    title="Win Rate"
+                    value={metricsLoading ? "—" : `${metrics?.winRate ?? 0}%`}
+                    trend={metricsLoading ? "Loading..." : metrics?.winRate ? "Active" : "No data yet"}
+                />
+                <StatCard
+                    icon={<Package className="text-primary w-6 h-6" />}
+                    title="Total Goods"
+                    value={metricsLoading ? "—" : `${metrics?.totalWeight ?? 0}t`}
+                    trend={metricsLoading ? "Loading..." : `${metrics?.totalWeight ?? 0}t total cargo`}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-10">
@@ -89,7 +123,7 @@ export default function ShipperDashboard() {
                     <div className="space-y-6">
                         <h3 className="font-display text-xl font-bold uppercase tracking-tight italic">AI Agent Status</h3>
                         <div className="space-y-4">
-                            <AgentStatus name="Negotiator Pro" status="Active" tasks={3} />
+                            <AgentStatus name="Negotiator Pro" status="Active" tasks={metrics?.activeCount ?? 0} />
                             <AgentStatus name="LSP Analyst" status="Idle" tasks={0} />
                             <AgentStatus name="Strategy Engine" status="Optimizing" tasks={1} />
                         </div>

@@ -53,6 +53,7 @@ export const negotiationApi = {
     }),
     getSession: (id: string) => fetcher(`/api/negotiation/${id}`),
     getHistory: () => fetcher("/api/negotiation/history"),
+    getMetrics: () => fetcher("/api/negotiation/metrics"),
     chat: (data: { negotiationId: string; message: string; price: number; role: "SHIPPER" | "CARRIER" }) => fetcher("/api/negotiation/chat", {
         method: "POST",
         body: JSON.stringify(data),

@@ -8,7 +8,7 @@ const inter = Inter({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-const display = Inter({
+const display = Outfit({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["800", "900"],
@@ -17,6 +17,9 @@ const display = Inter({
 export const metadata: Metadata = {
   title: "Negotiara | AI-Driven Logistics Negotiation",
   description: "Advanced negotiation platform for logistics services powered by AI.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({

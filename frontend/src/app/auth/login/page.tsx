@@ -6,27 +6,16 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import ColorBends from "@/components/ui/ColorBends";
+import { ShaderAnimation } from "@/components/ui/shader-animation";
 
 export default function LoginPage() {
     return (
-        <div className="min-h-screen relative overflow-hidden bg-transparent flex items-center justify-center lg:justify-end lg:pr-32 py-12 px-6">
-            {/* Background Background */}
+        <div className="min-h-screen relative overflow-y-auto bg-black flex items-center justify-center py-12 px-6">
+            {/* Background Shader */}
             <div className="fixed inset-0 z-0">
-                <ColorBends
-                    colors={["#FFB800", "#FF5C00", "#FFB800"]}
-                    rotation={45}
-                    speed={0.1}
-                    scale={1}
-                    frequency={1}
-                    warpStrength={1.5}
-                    mouseInfluence={0.8}
-                    parallax={0.5}
-                    noise={0.1}
-                    transparent
-                    autoRotate={0.02}
-                />
-                <div className="absolute inset-0 bg-black/60 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]" />
+                <ShaderAnimation />
+                <div className="absolute inset-0 bg-gradient-to-tr from-black via-transparent to-black/40" />
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
             </div>
 
             <Link href="/" className="absolute top-4 left-4 sm:top-8 sm:left-8 z-10 font-black italic tracking-tighter text-white flex items-center gap-2 group transition-all">

@@ -20,7 +20,7 @@ export default function LandingPage() {
   const handleStartNegotiation = () => {
     setIsDeploying(true);
     setTimeout(() => {
-      window.location.href = "/auth/login";
+      window.location.href = "/dashboard/shipper";
     }, 1500);
   };
 
@@ -59,8 +59,8 @@ export default function LandingPage() {
           </Link>
 
           <div className="flex gap-4">
-            <Link href="/auth/login">
-              <Button variant="outline" size="sm">Sign In</Button>
+            <Link href="/dashboard/shipper">
+              <Button variant="outline" size="sm">Dashboard</Button>
             </Link>
           </div>
         </nav>

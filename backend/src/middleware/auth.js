@@ -1,39 +1,22 @@
 const jwt = require('jsonwebtoken');
 
 const protect = (req, res, next) => {
-    if (!process.env.JWT_SECRET) {
-        console.error('FATAL: JWT_SECRET environment variable is not set.');
-        return res.status(500).json({ message: 'Server configuration error.' });
-    }
-
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        token = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!token) {
-        return res.status(401).json({ message: 'Not authorized, no token' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-        next();
-    } catch (error) {
-        return res.status(401).json({ message: 'Not authorized, token failed' });
-    }
+    // BYPASS: Automatically inject a mock user for no-auth mode
+    req.user = {
+        id: 'bypass-id-123',
+        name: 'OPERATOR ONE',
+        email: 'operator@negotiara.ai',
+        role: 'SHIPPER'
+    };
+    next();
 };
 
 const authorize = (...roles) => {
     return (req, res, next) => {
-        if (!req.user || !roles.includes(req.user.role)) {
-            return res.status(403).json({
-                message: `User role '${req.user?.role}' is not authorized to access this route`
-            });
-        }
+        // BYPASS: Always allow access regardless of roles
         next();
     };
 };
 
 module.exports = { protect, authorize };
+

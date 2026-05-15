@@ -30,17 +30,19 @@ export function SignupForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError("");
-        try {
-            const response = await axios.post("http://localhost:4000/api/auth/register", { name, email, password, role });
-            setUser(response.data);
-            router.push(`/dashboard/${role.toLowerCase()}`);
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Registration failed. Please try again.");
-        } finally {
-            setIsLoading(false);
-        }
+        // BYPASS: Set user directly and redirect
+        setTimeout(() => {
+            setUser({
+                id: "bypass-id-123",
+                name: "OPERATOR ONE",
+                email: "operator@negotiara.ai",
+                role: "SHIPPER",
+                token: "mock-token"
+            });
+            router.push("/dashboard/shipper");
+        }, 500);
     };
+
 
     return (
         <Card className="bento-card w-full max-w-md p-2 bg-secondary border-border">

@@ -1,10 +1,11 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:4000` : "http://127.0.0.1:4000");
 
 export async function fetcher(endpoint: string, options?: RequestInit) {
     let token = "";
     if (typeof window !== "undefined") {
         try {
-            const authStorage = localStorage.getItem("negotiara-auth");
+            const authStorage = localStorage.getItem("negotiara-auth-v2");
             if (authStorage) {
                 const parsed = JSON.parse(authStorage);
                 token = parsed.state?.user?.token || "";

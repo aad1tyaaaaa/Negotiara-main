@@ -23,7 +23,7 @@ const server = http.createServer(app);
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { pubClient, subClient } = require('./src/config/redis');
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || true; // Set to true to reflect request origin (more permissive for dev)
 
 const io = new Server(server, {
     cors: {
@@ -170,7 +170,7 @@ io.on('connection', (socket) => {
 
 // ── Server Start ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, async () => {
+server.listen(PORT, '0.0.0.0', async () => {
     console.log(`Express Backend listening on port ${PORT}`);
 
     const prisma = require('./src/config/db');

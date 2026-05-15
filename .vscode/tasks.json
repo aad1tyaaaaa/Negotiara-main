@@ -1,0 +1,69 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "AI Engine",
+            "type": "shell",
+            "command": "uvicorn app:app --host 0.0.0.0 --port 8000 --reload",
+            "options": {
+                "cwd": "${workspaceFolder}/ai-engine"
+            },
+            "presentation": {
+                "label": "AI Engine :8000",
+                "group": "negotiara",
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "Backend",
+            "type": "shell",
+            "command": "node server.js",
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "presentation": {
+                "label": "Backend :4000",
+                "group": "negotiara",
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "Frontend",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "presentation": {
+                "label": "Frontend :3000",
+                "group": "negotiara",
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Negotiara",
+            "dependsOn": ["AI Engine", "Backend", "Frontend"],
+            "dependsOrder": "parallel",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

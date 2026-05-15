@@ -18,18 +18,12 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
-            user: {
-                id: "bypass-id-123",
-                name: "OPERATOR ONE",
-                email: "operator@negotiara.ai",
-                role: "SHIPPER",
-                token: "mock-token"
-            },
+            user: null,
             setUser: (user) => set({ user }),
             logout: () => set({ user: null }),
         }),
         {
-            name: 'negotiara-auth',
+            name: 'negotiara-auth-v2',
         }
     )
 );

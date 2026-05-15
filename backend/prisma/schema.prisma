@@ -7,6 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                  String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name                String
+  email               String        @unique
+  password            String
+  role                Role          @default(SHIPPER)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @default(now()) @updatedAt
+  carriedNegotiations Negotiation[] @relation("CarrierNegotiations")
+  shippedNegotiations Negotiation[] @relation("ShipperNegotiations")
+}
+
+model Shipment {
+  id           String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  origin       String
+  destination  String
+  distance     Float?
+  cargoType    String
+  weight       Float
+  deadline     DateTime
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+  negotiations Negotiation[]
+}
+
+model Negotiation {
+  id              String            @id @default(dbgenerated("(gen_random_uuid())::text"))
+  shipmentId      String
+  shipperId       String
+  carrierId       String?
+  status          NegotiationStatus @default(OPEN)
+  basePrice       Float
+  targetPrice     Float
+  shipperBudget   Float?
+  carrierMinPrice Float?
+  strategyProfile String?
+  operationalCost Float?
+  desiredMargin   Float?
+  intrinsicValue  Float?
+  marketBenchmark Float?
+  deadline        DateTime
+  maxRounds       Int               @default(5)
+  currentRound    Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now()) @updatedAt
+  carrier         User?             @relation("CarrierNegotiations", fields: [carrierId], references: [id])
+  shipment        Shipment          @relation(fields: [shipmentId], references: [id])
+  shipper         User              @relation("ShipperNegotiations", fields: [shipperId], references: [id])
+  offers          Offer[]
+
+  @@index([shipperId])
+  @@index([carrierId])
+  @@index([status])
+}
+
+model Offer {
+  id             String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  negotiationId  String
+  round          Int
+  price          Float
+  senderId       String
+  strategy       String?
+  reasoning      String?
+  shipperUtility Float?
+  carrierUtility Float?
+  message        String?
+  createdAt      DateTime    @default(now())
+  negotiation    Negotiation @relation(fields: [negotiationId], references: [id])
+
+  @@index([negotiationId])
+}
+
 enum Role {
   SHIPPER
   CARRIER
@@ -18,89 +91,4 @@ enum NegotiationStatus {
   IN_PROGRESS
   COMPLETED
   WALK_AWAY
-}
-
-model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String   // Hashed
-  role      Role     @default(SHIPPER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  shippedNegotiations   Negotiation[] @relation("ShipperNegotiations")
-  carriedNegotiations   Negotiation[] @relation("CarrierNegotiations")
-}
-
-model Shipment {
-  id           String   @id @default(uuid())
-  origin       String
-  destination  String
-  distance     Float?   // Estimated distance in KM
-  cargoType    String
-  weight       Float
-  deadline     DateTime
-  description  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  negotiations Negotiation[]
-}
-
-model Negotiation {
-  id              String          @id @default(uuid())
-  shipmentId      String
-  shipperId       String
-  carrierId       String?         // Optional initially (RFQ stage)
-  status          NegotiationStatus @default(OPEN)
-  
-  // Pricing & Budget Boundaries
-  basePrice       Float           // Initial starting point
-  targetPrice     Float           // Desired outcome
-  shipperBudget   Float?          // Max walk-away for shipper
-  carrierMinPrice Float?          // Min walk-away for carrier
-  strategyProfile String?         // e.g. "Aggressive", "Collaborative"
-  operationalCost Float?          // Carrier's absolute bottom line cost
-  desiredMargin   Float?          // Carrier's desired profit margin
-  
-  // AI Metrics
-  intrinsicValue  Float?          // Calculated Buffett logic fair price
-  marketBenchmark Float?          // RAG retrieved average
-  
-  deadline        DateTime
-  maxRounds       Int             @default(5)
-  currentRound    Int             @default(0)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  shipment        Shipment        @relation(fields: [shipmentId], references: [id])
-  shipper         User            @relation("ShipperNegotiations", fields: [shipperId], references: [id])
-  carrier         User?           @relation("CarrierNegotiations", fields: [carrierId], references: [id])
-  offers          Offer[]
-
-  @@index([shipperId])
-  @@index([carrierId])
-  @@index([status])
-}
-
-model Offer {
-  id             String      @id @default(uuid())
-  negotiationId  String
-  round          Int
-  price          Float
-  senderId       String      // User ID of the sender
-  
-  // AI & Tactical Data
-  strategy       String?     // AI Strategy used (Voss, Buffett, etc.)
-  reasoning      String?     @db.Text
-  shipperUtility Float?      // Utility score at this point
-  carrierUtility Float?      // Utility score at this point
-  
-  message        String?
-  createdAt      DateTime    @default(now())
-
-  negotiation    Negotiation @relation(fields: [negotiationId], references: [id])
-
-  @@index([negotiationId])
 }

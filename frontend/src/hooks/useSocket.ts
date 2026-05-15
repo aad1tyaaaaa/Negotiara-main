@@ -5,13 +5,15 @@ import { io, Socket } from "socket.io-client";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export function useSocket(sessionId?: string) {
+export function useSocket(sessionId?: string, token?: string) {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [connected, setConnected] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
 
     useEffect(() => {
-        const s = io(SOCKET_URL);
+        const s = io(SOCKET_URL, {
+            auth: { token: token || "" },
+        });
 
         s.on("connect", () => {
             setConnected(true);

@@ -18,19 +18,19 @@ import { useAuthStore } from "@/store/authStore";
 export default function NegotiationSessionPage() {
     const { id } = useParams();
     const { user } = useAuthStore();
-    const { messages, connected } = useSocket(id as string);
+    const { messages: socketMessages, connected } = useSocket(id as string, user?.token);
     const [graphData, setGraphData] = useState<any[]>([]);
     const [session, setSession] = useState<any>(null);
     const [displayMessages, setDisplayMessages] = useState<any[]>([]);
+    const [socketInitialized, setSocketInitialized] = useState(false);
 
     useEffect(() => {
         negotiationApi.getSession(id as string).then(setSession).catch(console.error);
     }, [id]);
 
+    // Load initial messages from DB session only once
     useEffect(() => {
-        if (messages.length > 0) {
-            setDisplayMessages(messages);
-        } else if (session?.offers) {
+        if (session?.offers && displayMessages.length === 0) {
             const mappedOffers = session.offers.map((o: any) => ({
                 role: o.senderId === session.shipperId ? "SHIPPER" : "CARRIER",
                 content: o.message,
@@ -38,7 +38,15 @@ export default function NegotiationSessionPage() {
             }));
             setDisplayMessages(mappedOffers);
         }
-    }, [messages, session]);
+    }, [session]);
+
+    // Use socket messages only for initial playback (before user interacts)
+    useEffect(() => {
+        if (socketMessages.length > 0 && !socketInitialized) {
+            setSocketInitialized(true);
+            setDisplayMessages(socketMessages);
+        }
+    }, [socketMessages]);
 
     useEffect(() => {
         const rounds: Record<number, any> = {};
@@ -56,21 +64,32 @@ export default function NegotiationSessionPage() {
     const handleSendMessage = async (message: string, price: number) => {
         if (!id || isProcessing) return;
 
-        setIsProcessing(true);
+        const userRole = (user?.role === "CARRIER" ? "CARRIER" : "SHIPPER") as "SHIPPER" | "CARRIER";
+
+        // Optimistically show the user's own message immediately
+        setDisplayMessages((prev) => [...prev, { role: userRole, content: message, price }]);
+
         setIsProcessing(true);
         try {
-            await negotiationApi.chat({
+            const aiResponse = await negotiationApi.chat({
                 negotiationId: id as string,
-                message: message,
-                price: price,
-                role: (user?.role === "CARRIER" ? "CARRIER" : "SHIPPER") as "SHIPPER" | "CARRIER"
+                message,
+                price,
+                role: userRole,
             });
 
-            // The response will eventually come back via Socket.io too, 
-            // but we can optimistically update or just let the socket handle it.
-            // For better UX, we'll let the socket update displayMessages.
+            // Add AI counter-offer directly from REST response
+            // (socket may also deliver it, but this ensures it always shows)
+            if (aiResponse?.content) {
+                setDisplayMessages((prev) => [
+                    ...prev,
+                    { role: aiResponse.role, content: aiResponse.content, price: aiResponse.price },
+                ]);
+            }
         } catch (error) {
             console.error("Failed to send message:", error);
+            // Remove optimistic message on failure
+            setDisplayMessages((prev) => prev.slice(0, -1));
         } finally {
             setIsProcessing(false);
         }
@@ -122,7 +141,12 @@ export default function NegotiationSessionPage() {
                                     <div className="px-6 py-2 bg-primary/20 border border-primary/30 rounded-xl">
                                         <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] italic">Negotiation Converged</span>
                                     </div>
-                                    <Button variant="premium" size="lg" className="h-20 px-12 gap-4 text-xl">
+                                    <Button variant="premium" size="lg" className="h-20 px-12 gap-4 text-xl" onClick={() => {
+                                        const agreed = displayMessages.length > 0
+                                            ? displayMessages[displayMessages.length - 1].price
+                                            : session?.targetPrice;
+                                        alert(`Contract awarded at $${agreed?.toLocaleString()}. Booking confirmed for ${session?.shipment?.origin} → ${session?.shipment?.destination}.`);
+                                    }}>
                                         <CheckCircle className="w-6 h-6" />
                                         Award Contract & Digital Booking
                                     </Button>

@@ -20,10 +20,7 @@ const negotiationRoutes = require('./src/routes/negotiationRoutes');
 const app = express();
 const server = http.createServer(app);
 
-const { createAdapter } = require('@socket.io/redis-adapter');
-const { pubClient, subClient } = require('./src/config/redis');
-
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || true; // Set to true to reflect request origin (more permissive for dev)
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || true;
 
 const io = new Server(server, {
     cors: {
@@ -33,7 +30,15 @@ const io = new Server(server, {
     }
 });
 
-io.adapter(createAdapter(pubClient, subClient));
+// Use Redis adapter only if REDIS_URL is provided
+if (process.env.REDIS_URL) {
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const { pubClient, subClient } = require('./src/config/redis');
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('Socket.io using Redis adapter');
+} else {
+    console.log('Socket.io running in standalone mode (no Redis)');
+}
 
 // ── CORS ──────────────────────────────────────────────────────────────────
 app.use(cors({

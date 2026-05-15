@@ -30,17 +30,22 @@ export function SignupForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // BYPASS: Set user directly and redirect
-        setTimeout(() => {
-            setUser({
-                id: "bypass-id-123",
-                name: "OPERATOR ONE",
-                email: "operator@negotiara.ai",
-                role: "SHIPPER",
-                token: "mock-token"
+        setError("");
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/auth/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, email, password, role }),
             });
-            router.push("/dashboard/shipper");
-        }, 500);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Registration failed");
+            setUser(data);
+            router.push(`/dashboard/${data.role.toLowerCase()}`);
+        } catch (err: any) {
+            setError(err.message || "An unexpected error occurred.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
 

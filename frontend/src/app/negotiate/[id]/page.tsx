@@ -38,10 +38,70 @@ export default function NegotiationSessionPage() {
     const [graphData, setGraphData] = useState<any[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [dealConfirmed, setDealConfirmed] = useState(false);
+    const [agreedPrice, setAgreedPrice] = useState<number | null>(null);
+    const [recommendation, setRecommendation] = useState<string | null>(null);
+    const [savingsPct, setSavingsPct] = useState<number>(0);
+    const [sessionData, setSessionData] = useState<any>(MOCK_SESSION);
     const carrierIndexRef = useRef(0);
+    const animationInProgressRef = useRef(false);
 
-    // Auto-show first carrier message on mount (the opening offer)
+    // Load data and handle simulation/animation
     useEffect(() => {
+        const storedResult = localStorage.getItem("negotiara_last_result");
+        
+        if (storedResult) {
+            try {
+                const result = JSON.parse(storedResult);
+                // Extract session info from history or context if possible, 
+                // but for now we'll update the display based on history
+                const history = result.history || [];
+                setAgreedPrice(result.agreed_price);
+                setRecommendation(result.recommendation);
+                setSavingsPct(result.savings_pct);
+                
+                // Update session data from history first message if it's a carrier offer
+                if (history.length > 0) {
+                    const firstMsg = history[0];
+                    setSessionData((prev: any) => ({
+                        ...prev,
+                        basePrice: firstMsg.price || prev.basePrice
+                    }));
+                }
+
+                // Animate history rounds
+                animationInProgressRef.current = true;
+                let currentIdx = 0;
+                
+                const animateNextMessage = () => {
+                    if (currentIdx < history.length) {
+                        setIsProcessing(true);
+                        const delay = currentIdx === 0 ? 500 : (1500 + Math.random() * 1000);
+                        
+                        setTimeout(() => {
+                            setDisplayMessages(prev => [...prev, history[currentIdx]]);
+                            currentIdx++;
+                            setIsProcessing(false);
+                            
+                            if (currentIdx === history.length) {
+                                animationInProgressRef.current = false;
+                                if (result.status === "COMPLETED") {
+                                    setDealConfirmed(true);
+                                }
+                            } else {
+                                animateNextMessage();
+                            }
+                        }, delay);
+                    }
+                };
+                
+                animateNextMessage();
+                return;
+            } catch (e) {
+                console.error("Failed to parse stored result:", e);
+            }
+        }
+
+        // FALLBACK: Interactive Mock (if no stored result)
         const t = setTimeout(() => {
             setDisplayMessages([{ role: "CARRIER", ...CARRIER_RESPONSES[0] }]);
             carrierIndexRef.current = 1;
@@ -61,34 +121,31 @@ export default function NegotiationSessionPage() {
         setGraphData(Object.values(rounds));
     }, [displayMessages]);
 
-    // Handle user sending a message — show their message, then "AI" responds
+    // Handle user sending a message — ONLY active if not animating real history
     const handleSendMessage = (message: string, price: number) => {
-        if (isProcessing || dealConfirmed) return;
+        if (isProcessing || dealConfirmed || animationInProgressRef.current) return;
 
-        // Add user's actual typed message as SHIPPER
         const shipperMsg = { role: "SHIPPER", content: message, price: price || 0 };
         setDisplayMessages(prev => [...prev, shipperMsg]);
 
-        // Check if there are more carrier responses
         const nextIdx = carrierIndexRef.current;
         if (nextIdx < CARRIER_RESPONSES.length) {
             setIsProcessing(true);
-            // Simulate AI "thinking" delay
             setTimeout(() => {
                 const carrierMsg = { role: "CARRIER", ...CARRIER_RESPONSES[nextIdx] };
                 setDisplayMessages(prev => [...prev, carrierMsg]);
                 carrierIndexRef.current = nextIdx + 1;
                 setIsProcessing(false);
 
-                // If this was the last carrier response, mark deal as confirmed
                 if (nextIdx === CARRIER_RESPONSES.length - 1) {
                     setDealConfirmed(true);
+                    setAgreedPrice(CARRIER_RESPONSES[nextIdx].price);
                 }
-            }, 1500 + Math.random() * 1000); // 1.5-2.5s delay for realism
+            }, 1500 + Math.random() * 1000);
         }
     };
 
-    const session = MOCK_SESSION;
+    const session = sessionData;
     const currentPrice = displayMessages.length > 0
         ? displayMessages.filter(m => (m.price ?? 0) > 0).at(-1)?.price ?? 0
         : session.basePrice;
@@ -114,7 +171,9 @@ export default function NegotiationSessionPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="px-3 py-1 rounded-md bg-primary/20 border border-primary/30">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Simulated</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                                        {agreedPrice ? "Autonomous AI" : "Simulated"}
+                                    </span>
                                 </div>
                                 <div className={`w-2 h-2 rounded-full ${dealConfirmed ? "bg-emerald-400" : "bg-primary animate-pulse"}`} />
                                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white italic">
@@ -147,10 +206,12 @@ export default function NegotiationSessionPage() {
                                     <div className="relative glass p-10 rounded-[32px] border-2 border-primary/50 shadow-[0_0_60px_rgba(255,184,0,0.25)]">
                                         <div className="flex items-center gap-2 mb-3">
                                             <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]" />
-                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 italic">Contract Confirmed</span>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 italic">
+                                                {savingsPct > 0 ? `Optimized ${savingsPct.toFixed(1)}% Savings` : "Contract Confirmed"}
+                                            </span>
                                         </div>
                                         <div className="text-7xl font-display font-black text-white italic tracking-tighter">
-                                            ${DEAL_PRICE.toLocaleString()}
+                                            ${(agreedPrice || DEAL_PRICE).toLocaleString()}
                                         </div>
                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mt-3 italic">
                                             Final Agreed Rate • {session.shipment.origin} → {session.shipment.destination}
@@ -279,7 +340,8 @@ export default function NegotiationSessionPage() {
                             targetPrice={session.targetPrice}
                             currentRound={currentRound}
                             maxRounds={maxRounds}
-                            dealConfirmedPrice={dealConfirmed ? DEAL_PRICE : undefined}
+                            dealConfirmedPrice={dealConfirmed ? (agreedPrice || DEAL_PRICE) : undefined}
+                            recommendation={recommendation || undefined}
                         />
                     </div>
                 </div>

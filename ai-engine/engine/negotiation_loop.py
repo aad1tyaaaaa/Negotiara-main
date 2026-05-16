@@ -71,28 +71,36 @@ def execute_negotiation(context: dict, max_rounds: int = 5) -> dict:
 
         # Shipper Turn
         shipper_budget = context.get("shipper_metrics", {}).get("budget", market_avg * 1.1)
+        shipper_target = context.get("shipper_metrics", {}).get("initial_offer", market_avg * 0.9)
         shipper_context = {
             "shipment": shipment,
             "market_benchmark": market_avg,
             "intrinsic_value": adjusted_intrinsic,
             "strategy_profile": prep["strategy_profile"],
-            "target_price": current_shipper_price,
+            "target_price": shipper_target,
             "reservation_price": shipper_budget,
             "round": current_round,
             "max_rounds": max_rounds
         }
 
         shipper_response = shipper.generate_response(shipper_context, history)
-        current_shipper_price = shipper_response.get("target_counter_price", current_shipper_price)
+        current_shipper_price = float(shipper_response.get("target_counter_price", current_shipper_price))
+        shipper_status = shipper_response.get("deal_status", "negotiating")
+        
         history.append({
             "role": "SHIPPER",
             "content": shipper_response.get("message_to_lsp"),
-            "price": current_shipper_price
+            "price": current_shipper_price,
+            "deal_status": shipper_status
         })
 
-        if current_shipper_price >= current_carrier_price:
+        if shipper_status == "accepted" or current_shipper_price >= current_carrier_price:
             final_status = "COMPLETED"
-            agreed_price = current_shipper_price
+            agreed_price = current_carrier_price if shipper_status == "accepted" else current_shipper_price
+            break
+        
+        if shipper_status == "walked_away":
+            final_status = "WALK_AWAY"
             break
 
         # Carrier Turn
@@ -110,16 +118,23 @@ def execute_negotiation(context: dict, max_rounds: int = 5) -> dict:
         }
 
         carrier_response = carrier.generate_response(carrier_context, history)
-        current_carrier_price = carrier_response.get("target_counter_price", current_carrier_price)
+        current_carrier_price = float(carrier_response.get("target_counter_price", current_carrier_price))
+        carrier_status = carrier_response.get("deal_status", "negotiating")
+
         history.append({
             "role": "CARRIER",
             "content": carrier_response.get("message_to_lsp"),
-            "price": current_carrier_price
+            "price": current_carrier_price,
+            "deal_status": carrier_status
         })
 
-        if current_carrier_price <= current_shipper_price:
+        if carrier_status == "accepted" or current_carrier_price <= current_shipper_price:
             final_status = "COMPLETED"
-            agreed_price = current_carrier_price
+            agreed_price = current_shipper_price if carrier_status == "accepted" else current_carrier_price
+            break
+
+        if carrier_status == "walked_away":
+            final_status = "WALK_AWAY"
             break
 
         rounds_data.append({
@@ -132,11 +147,26 @@ def execute_negotiation(context: dict, max_rounds: int = 5) -> dict:
     if final_status == "IN_PROGRESS":
         final_status = "WALK_AWAY"
 
-    logger.info("Negotiation finished: status=%s agreed_price=%s", final_status, agreed_price)
+    # Booking Recommendation Logic
+    recommendation = "reject"
+    if final_status == "COMPLETED" and agreed_price:
+        if agreed_price <= shipper_target:
+            recommendation = "auto_book"
+        elif agreed_price <= shipper_budget:
+            recommendation = "recommend"
+    
+    savings = 0
+    if agreed_price:
+        initial_price = history[0].get("price", market_avg * 1.2)
+        savings = ((initial_price - agreed_price) / initial_price) * 100
+
+    logger.info("Negotiation finished: status=%s agreed_price=%s recommendation=%s", final_status, agreed_price, recommendation)
 
     return {
         "status": final_status,
         "agreed_price": agreed_price,
+        "recommendation": recommendation,
+        "savings_pct": round(savings, 2),
         "market_context": {
             "intrinsic_value": adjusted_intrinsic,
             "market_benchmark": market_avg

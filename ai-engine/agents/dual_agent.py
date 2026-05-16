@@ -20,15 +20,19 @@ class NegotiationAgent:
         self.client = Groq(api_key=self.api_key) if self.api_key else None
 
         prompt_file = _PROMPTS_DIR / (
-            "master_prompt.txt" if role == "SHIPPER" else "lsp_persona_prompts.txt"
+            "master_prompt.txt" if role == "SHIPPER" else "carrier_persona.txt"
         )
         format_file = _PROMPTS_DIR / "output_format_instructions.txt"
 
         with open(prompt_file, "r") as f:
             self.system_prompt = f.read()
 
-        with open(format_file, "r") as f:
-            self.format_instructions = f.read()
+        # Carrier persona has its own format instructions embedded
+        if role == "SHIPPER":
+            with open(format_file, "r") as f:
+                self.format_instructions = f.read()
+        else:
+            self.format_instructions = ""
 
     def generate_response(self, context_data: dict, history: list) -> dict:
         if not self.client:

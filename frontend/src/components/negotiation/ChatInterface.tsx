@@ -19,6 +19,7 @@ interface ChatInterfaceProps {
     currentRound?: number;
     maxRounds?: number;
     dealConfirmedPrice?: number;
+    recommendation?: string;
 }
 
 export function ChatInterface({
@@ -29,6 +30,7 @@ export function ChatInterface({
     currentRound = 0,
     maxRounds = 6,
     dealConfirmedPrice,
+    recommendation,
 }: ChatInterfaceProps) {
     const [inputValue, setInputValue] = useState("");
     const [priceValue, setPriceValue] = useState<string>("");
@@ -205,9 +207,20 @@ export function ChatInterface({
             {/* Input — or Deal Summary when confirmed */}
             {dealConfirmedPrice ? (
                 <div className="p-5 bg-zinc-950/80 border-t border-emerald-400/20 backdrop-blur-md shrink-0">
-                    <div className="flex items-center justify-center gap-3">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 italic">Negotiation Complete — Contract at ${dealConfirmedPrice.toLocaleString()}</p>
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 italic">
+                                {recommendation === "auto_book" 
+                                    ? "Automated Booking Confirmed ✓" 
+                                    : recommendation === "recommend" 
+                                        ? "Optimal Rate Achieved — Highly Recommended" 
+                                        : "Negotiation Concluded"}
+                            </p>
+                        </div>
+                        <p className="text-[8px] text-white/40 uppercase font-black tracking-widest italic">
+                            Final Contracted Rate: ${dealConfirmedPrice.toLocaleString()}
+                        </p>
                     </div>
                 </div>
             ) : (

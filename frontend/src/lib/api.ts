@@ -1,6 +1,9 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
     (typeof window !== "undefined" ? `http://${window.location.hostname}:4000` : "http://127.0.0.1:4000");
 
+export const AI_ENGINE_URL = process.env.NEXT_PUBLIC_AI_ENGINE_URL || 
+    (typeof window !== "undefined" ? `http://${window.location.hostname}:8000` : "http://127.0.0.1:8000");
+
 export async function fetcher(endpoint: string, options?: RequestInit) {
     let token = "";
     if (typeof window !== "undefined") {

@@ -267,14 +267,70 @@ export default function NewNegotiationPage() {
         setLoading(true)
         setLoadingMsgIdx(0)
         setError("")
-        const interval = setInterval(() => {
-            setLoadingMsgIdx(i => { if (i >= LOADING_MESSAGES.length - 1) { clearInterval(interval); return i }; return i + 1 })
-        }, 700)
-        // Wait for loading animation to finish, then redirect to simulated session
-        setTimeout(() => {
-            clearInterval(interval)
-            router.push(`/negotiate/sim-session`)
-        }, LOADING_MESSAGES.length * 700 + 400)
+
+        const loadingInterval = setInterval(() => {
+            setLoadingMsgIdx(i => {
+                if (i >= LOADING_MESSAGES.length - 1) return i;
+                return i + 1;
+            })
+        }, 800);
+
+        try {
+            // Prepare payload for AI Engine
+            const payload = {
+                shipment: {
+                    origin,
+                    destination,
+                    distance: 1000, // Default distance if not provided
+                    cargo_type: cargoType,
+                    weight: parseFloat(weight),
+                },
+                shipper_metrics: {
+                    initial_offer: parseFloat(targetPrice),
+                    budget: parseFloat(reservationPrice),
+                },
+                strategy_profile: strategy,
+                max_rounds: rounds
+            };
+
+            const { AI_ENGINE_URL } = await import("@/lib/api");
+            
+            const response = await fetch(`${AI_ENGINE_URL}/api/negotiate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.detail || "AI Engine failed to start negotiation");
+            }
+
+            const result = await response.json();
+            
+            // Save full result to localStorage for the next page
+            localStorage.setItem("negotiara_last_result", JSON.stringify(result));
+            
+            clearInterval(loadingInterval);
+            setLoadingMsgIdx(LOADING_MESSAGES.length - 1);
+            
+            // Short delay to show final step
+            setTimeout(() => {
+                router.push(`/negotiate/sim-session`);
+            }, 600);
+
+        } catch (err: any) {
+            console.error("Negotiation initiation failed:", err);
+            clearInterval(loadingInterval);
+            setError(err.message || "Failed to connect to AI clusters. Falling back to local simulation.");
+            setLoading(false);
+            
+            // Optional: Auto-fallback after error? No, let user see error or add a fallback button
+            // For now, let's just alert and maybe allow them to try again or bypass
+            if (confirm("AI Engine is offline. Start local simulation instead?")) {
+                router.push(`/negotiate/sim-session`);
+            }
+        }
     }
     handleSubmitRef.current = handleSubmit
 

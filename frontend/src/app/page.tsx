@@ -60,7 +60,7 @@ export default function LandingPage() {
 
           <div className="flex gap-4">
             <Link href="/dashboard/shipper">
-              <Button variant="outline" size="sm">Dashboard</Button>
+              <Button variant="outline" size="sm">Login</Button>
             </Link>
           </div>
         </nav>
@@ -240,9 +240,6 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any, title: str
       <div className="space-y-4 relative z-10">
         <h3 className="font-black text-lg uppercase tracking-tight italic text-white group-hover:text-primary transition-colors">{title}</h3>
         <p className="text-sm text-white/40 leading-relaxed font-bold">{description}</p>
-      </div>
-      <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <ArrowRight className="w-5 h-5 text-primary" />
       </div>
     </div>
   );

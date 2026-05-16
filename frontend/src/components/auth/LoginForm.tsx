@@ -85,12 +85,20 @@ export function LoginForm() {
                             <button
                                 className="inline-flex items-center justify-center whitespace-nowrap font-sans font-black uppercase tracking-tight transition-all cursor-pointer select-none active:translate-x-[0.05em] active:translate-y-[0.05em] active:shadow-[0.05em_0.05em_0px_0px_rgba(0,0,0,1)] disabled:pointer-events-none disabled:opacity-50 bg-[#fbca1f] text-black border-black hover:shadow-[0.15em_0.15em_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[0.05em] hover:-translate-y-[0.05em] px-4 text-[14px] rounded-[0.3em] border-[2px] shadow-[0.08em_0.08em_0px_0px_rgba(0,0,0,1)] h-14"
                                 type="button"
+                                onClick={() => {
+                                    setEmail("shipper@negotiara.ai");
+                                    setPassword("password123");
+                                }}
                             >
                                 Shipper
                             </button>
                             <button
                                 className="inline-flex items-center justify-center whitespace-nowrap font-sans font-black uppercase tracking-tight transition-all cursor-pointer select-none active:translate-x-[0.05em] active:translate-y-[0.05em] active:shadow-[0.05em_0.05em_0px_0px_rgba(0,0,0,1)] disabled:pointer-events-none disabled:opacity-50 bg-zinc-900 text-white border-black hover:bg-zinc-800 px-4 text-[14px] rounded-[0.3em] border-[2px] shadow-[0.08em_0.08em_0px_0px_rgba(0,0,0,1)] h-14"
                                 type="button"
+                                onClick={() => {
+                                    setEmail("carrier@negotiara.ai");
+                                    setPassword("password123");
+                                }}
                             >
                                 Carrier
                             </button>

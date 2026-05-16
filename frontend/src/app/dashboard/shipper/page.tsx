@@ -66,7 +66,7 @@ export default function ShipperDashboard() {
                     trend={metricsLoading ? "Loading..." : `${metrics?.avgSavings ?? 0}% vs market`}
                 />
                 <StatCard
-                    icon={<Clock className="text-muted-foreground w-6 h-6" />}
+                    icon={<Clock className="text-primary w-6 h-6" />}
                     title="Active RFQs"
                     value={metricsLoading ? "—" : String(metrics?.activeCount ?? 0)}
                     trend={metricsLoading ? "Loading..." : `${metrics?.activeCount ?? 0} pending`}

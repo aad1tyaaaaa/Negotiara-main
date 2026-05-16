@@ -157,3 +157,4 @@ The unified dashboard will be available at `http://localhost:3000`.
   <i>"In business, you don't get what you deserve, you get what you negotiate." - Chester L. Karrass</i>
 </div>
 # Negotiara-AI
+  

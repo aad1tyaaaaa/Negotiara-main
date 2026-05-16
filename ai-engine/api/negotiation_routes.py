@@ -26,7 +26,7 @@ async def start_negotiation(request: NegotiationRequest):
         return result
     except Exception as e:
         logger.exception("Error in start_negotiation: %s", str(e))
-        raise HTTPException(status_code=500, detail="Negotiation engine error. Check server logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/negotiate/step")
@@ -48,4 +48,4 @@ async def negotiate_step(request: StepRequest):
         return result
     except Exception as e:
         logger.exception("Error in negotiate_step: %s", str(e))
-        raise HTTPException(status_code=500, detail="Negotiation step error. Check server logs.")
+        raise HTTPException(status_code=500, detail=str(e))

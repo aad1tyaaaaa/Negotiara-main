@@ -47,7 +47,7 @@ export function PriceGraph({ data, targetPrice }: PriceGraphProps) {
                             tickLine={false}
                             axisLine={false}
                             tickFormatter={(value) => `$${value.toLocaleString()}`}
-                            domain={['dataMin - 1000', 'dataMax + 1000']}
+                            domain={[(dataMin: number) => Math.max(0, Math.floor(dataMin * 0.88)), (dataMax: number) => Math.ceil(dataMax * 1.08)]}
                             dx={-10}
                             fontFamily="Inter"
                         />

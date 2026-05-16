@@ -36,12 +36,22 @@ export async function fetcher(endpoint: string, options?: RequestInit) {
             }
         }
 
+        let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
         try {
             const error = await response.json();
-            throw new Error(error.message || `API error: ${response.status}`)
+            // Prefer detail field, then message, then generic HTTP error
+            errorMsg = error?.detail || error?.message || errorMsg;
         } catch (parseError) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            // If response body is not JSON, try to get text
+            try {
+                const text = await response.text();
+                console.error("Non-JSON error response:", text);
+                errorMsg = text.substring(0, 200) || errorMsg;
+            } catch (e) {
+                console.error("Failed to read error response:", e);
+            }
         }
+        throw new Error(errorMsg)
     }
 
     return response.json()

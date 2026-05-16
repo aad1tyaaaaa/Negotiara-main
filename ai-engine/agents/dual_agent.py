@@ -33,7 +33,7 @@ class NegotiationAgent:
     def generate_response(self, context_data: dict, history: list) -> dict:
         if not self.client:
             logger.error("Groq client not initialized — GROQ_API_KEY is missing.")
-            return {"error": "Groq client not initialized. Set GROQ_API_KEY in your .env file."}
+            raise EnvironmentError("GROQ_API_KEY is not configured. Add it to ai-engine/.env")
 
         context_str = "\n".join([f"{k}: {v}" for k, v in context_data.items()])
         history_str = "\n".join([
@@ -67,4 +67,4 @@ class NegotiationAgent:
             return json.loads(response_content)
         except Exception as e:
             logger.error("[%s] LLM call failed: %s", self.role, str(e))
-            return {"error": str(e)}
+            raise RuntimeError(f"LLM call failed ({self.role}): {str(e)}")

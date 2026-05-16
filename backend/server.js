@@ -20,7 +20,7 @@ const negotiationRoutes = require('./src/routes/negotiationRoutes');
 const app = express();
 const server = http.createServer(app);
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || true;
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',') : ["http://localhost:3000", "http://127.0.0.1:3000"];
 
 const io = new Server(server, {
     cors: {
@@ -175,7 +175,7 @@ io.on('connection', (socket) => {
 
 // ── Server Start ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, '0.0.0.0', async () => {
+server.listen(PORT, async () => {
     console.log(`Express Backend listening on port ${PORT}`);
 
     const prisma = require('./src/config/db');

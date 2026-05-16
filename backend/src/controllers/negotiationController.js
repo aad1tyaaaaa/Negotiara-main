@@ -6,10 +6,10 @@ const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000/api/ne
 
 const startNegotiation = async (req, res) => {
     try {
-        const { shipment, shipper_metrics, carrier_metrics, market_signals, strategyProfile } = req.body;
+        const { shipment, shipper_metrics, carrier_metrics, strategyProfile } = req.body;
         const shipperId = req.user.id;
 
-        // 1. Create or Find Shipment
+        // 1. Create Shipment record
         const newShipment = await prisma.shipment.create({
             data: {
                 origin: shipment.origin,
@@ -21,7 +21,7 @@ const startNegotiation = async (req, res) => {
             }
         });
 
-        // 2. Initialize Negotiation
+        // 2. Create Negotiation record — AI simulation is driven interactively via /chat
         const negotiation = await prisma.negotiation.create({
             data: {
                 shipmentId: newShipment.id,
@@ -38,57 +38,16 @@ const startNegotiation = async (req, res) => {
             }
         });
 
-        // 3. Trigger AI Engine Simulation (with timeout)
-        const aiResponse = await axios.post(AI_ENGINE_URL, {
-            shipment: shipment,
-            shipper_metrics: shipper_metrics,
-            carrier_metrics: carrier_metrics,
-            market_signals: market_signals,
-            strategy_profile: strategyProfile || 'Collaborative',
-            max_rounds: negotiation.maxRounds
-        }, { timeout: 60000 });
-
-        const simulationResults = aiResponse.data;
-
-        // 4. Persist Simulation Results (Offers)
-        const offerPromises = simulationResults.history.map((entry, index) => {
-            return prisma.offer.create({
-                data: {
-                    negotiationId: negotiation.id,
-                    round: Math.floor(index / 2) + 1,
-                    price: entry.price,
-                    senderId: entry.role === 'SHIPPER' ? shipperId : (req.body.carrierId || 'ai-carrier-id'),
-                    message: entry.content,
-                    strategy: entry.strategy_used || 'Autonomous'
-                }
-            });
-        });
-
-        await Promise.all(offerPromises);
-
-        // 5. Update Negotiation Status
-        await prisma.negotiation.update({
-            where: { id: negotiation.id },
-            data: {
-                status: simulationResults.status === 'COMPLETED' ? 'COMPLETED' : 'WALK_AWAY',
-                intrinsicValue: simulationResults.market_context?.intrinsic_value,
-                marketBenchmark: simulationResults.market_context?.market_benchmark,
-                currentRound: simulationResults.rounds.length
-            }
-        });
-
         res.status(201).json({
-            message: 'Negotiation completed successfully',
+            message: 'Negotiation initialized. Begin chat to start AI negotiation.',
             negotiationId: negotiation.id,
-            results: simulationResults
         });
 
     } catch (error) {
-        console.error('Negotiation Error:', error.message);
-        const isDev = process.env.NODE_ENV === 'development';
+        console.error('Negotiation Init Error:', error.message);
         res.status(500).json({
-            message: 'Failed to execute negotiation.',
-            ...(isDev && { detail: error.message }),
+            message: 'Failed to initialize negotiation.',
+            detail: error.message,
         });
     }
 };
@@ -168,19 +127,51 @@ const negotiateStep = async (req, res) => {
         }
 
         // 3. Call AI Engine Step (with timeout)
-        const aiStepResponse = await axios.post(`${AI_ENGINE_URL}/step`, {
-            context: {
-                shipment: negotiation.shipment,
-                shipper_metrics: { budget: negotiation.shipperBudget, initial_offer: negotiation.basePrice },
-                carrier_metrics: { operational_cost: negotiation.operationalCost },
-                strategy_profile: negotiation.strategyProfile,
-                max_rounds: negotiation.maxRounds
-            },
-            history: history,
-            role: role === 'SHIPPER' ? 'CARRIER' : 'SHIPPER' // Generate for the OPPOSITE role
-        });
+        // Map DB field names to AI schema (snake_case) to avoid StepRequest validation failures.
+        let aiMove;
+        try {
+            console.log('Calling AI Engine at:', `${AI_ENGINE_URL}/step`);
+            const aiStepResponse = await axios.post(`${AI_ENGINE_URL}/step`, {
+                context: {
+                    shipment: {
+                        origin: negotiation.shipment.origin,
+                        destination: negotiation.shipment.destination,
+                        distance: negotiation.shipment.distance || 1,
+                        cargo_type: negotiation.shipment.cargoType,
+                        weight: negotiation.shipment.weight,
+                        deadline: negotiation.shipment.deadline
+                    },
+                    shipper_metrics: {
+                        budget: negotiation.shipperBudget || (negotiation.basePrice * 1.5) || 10000,
+                        initial_offer: negotiation.basePrice || 1000,
+                        target_price: negotiation.targetPrice || null
+                    },
+                    carrier_metrics: {
+                        operational_cost: negotiation.operationalCost,
+                        desired_margin: negotiation.desiredMargin
+                    },
+                    strategy_profile: negotiation.strategyProfile,
+                    max_rounds: negotiation.maxRounds
+                },
+                history: history,
+                role: role === 'SHIPPER' ? 'CARRIER' : 'SHIPPER' // Generate for the OPPOSITE role
+            }, { timeout: 60000 });
+            aiMove = aiStepResponse.data;
+        } catch (aiError) {
+            console.error('AI Engine Error:', {
+                message: aiError.message,
+                status: aiError.response?.status,
+                data: aiError.response?.data,
+                config: aiError.config?.url
+            });
+            throw new Error(`AI Engine failed: ${aiError.response?.data?.detail || aiError.message}`);
+        }
 
-        const aiMove = aiStepResponse.data;
+        if (!aiMove || !aiMove.message_to_lsp) {
+            const detail = aiMove?.error || aiMove?.detail || 'missing message_to_lsp field';
+            throw new Error(`AI Engine returned invalid response: ${detail}`);
+        }
+
         const aiRole = role === 'SHIPPER' ? 'CARRIER' : 'SHIPPER';
 
         // 4. Save AI Move to DB
@@ -215,11 +206,16 @@ const negotiateStep = async (req, res) => {
         res.json(payload);
 
     } catch (error) {
-        console.error('Negotiate Step Error:', error.message);
+        console.error('Negotiate Step Error:', {
+            message: error.message,
+            stack: error.stack,
+            response: error.response?.data
+        });
         const isDev = process.env.NODE_ENV === 'development';
         res.status(500).json({
             message: 'Failed to generate negotiation step.',
-            ...(isDev && { detail: error.message }),
+            detail: error.message,
+            ...(isDev && { stack: error.stack, response: error.response?.data })
         });
     }
 };

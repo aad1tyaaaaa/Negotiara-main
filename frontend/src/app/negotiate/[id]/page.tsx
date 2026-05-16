@@ -1,53 +1,55 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useSocket } from "@/hooks/useSocket";
 import { ChatInterface } from "@/components/negotiation/ChatInterface";
 import { PriceGraph } from "@/components/negotiation/PriceGraph";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Shield, Clock, MapPin, Package, AlertCircle, ArrowLeft, CheckCircle, Cpu } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Package, ArrowLeft, Cpu } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { SaiperUtilityMatrix } from "@/components/negotiation/SaiperUtilityMatrix";
-import { negotiationApi } from "@/lib/api";
-import { Button } from "@/components/ui/Button";
-import { motion, AnimatePresence } from "framer-motion";
-import { useAuthStore } from "@/store/authStore";
+import { motion } from "framer-motion";
+
+// ─── Carrier AI scripted responses (triggered one-by-one after each user message) ──
+
+const CARRIER_RESPONSES = [
+    { price: 12500, content: "Initial quote for logistics from Shanghai to Los Angeles. Given current port congestion and fuel surcharges, our base rate is $12,500." },
+    { price: 11800, content: "We can consider $11,800 if you guarantee loading times under 2 hours to avoid demurrage penalties." },
+    { price: 11500, content: "Deal. We can execute at $11,500 given the strict loading time guarantee. Contract terms accepted." },
+];
+
+const MOCK_SESSION = {
+    id: "SIM-8829-Z",
+    targetPrice: 10500,
+    basePrice: 12500,
+    maxRounds: 6,
+    priority: "High Magnitude",
+    shipment: {
+        origin: "SHENZHEN HUB, CN",
+        destination: "LOS ANGELES PORT, US",
+        cargoType: "High-End Electronics",
+        weight: 5000,
+    },
+};
+
+const DEAL_PRICE = 11500;
 
 export default function NegotiationSessionPage() {
     const { id } = useParams();
-    const { user } = useAuthStore();
-    const { messages: socketMessages, connected } = useSocket(id as string, user?.token);
-    const [graphData, setGraphData] = useState<any[]>([]);
-    const [session, setSession] = useState<any>(null);
     const [displayMessages, setDisplayMessages] = useState<any[]>([]);
-    const [socketInitialized, setSocketInitialized] = useState(false);
+    const [graphData, setGraphData] = useState<any[]>([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [dealConfirmed, setDealConfirmed] = useState(false);
+    const carrierIndexRef = useRef(0);
 
+    // Auto-show first carrier message on mount (the opening offer)
     useEffect(() => {
-        negotiationApi.getSession(id as string).then(setSession).catch(console.error);
-    }, [id]);
+        const t = setTimeout(() => {
+            setDisplayMessages([{ role: "CARRIER", ...CARRIER_RESPONSES[0] }]);
+            carrierIndexRef.current = 1;
+        }, 800);
+        return () => clearTimeout(t);
+    }, []);
 
-    // Load initial messages from DB session only once
-    useEffect(() => {
-        if (session?.offers && displayMessages.length === 0) {
-            const mappedOffers = session.offers.map((o: any) => ({
-                role: o.senderId === session.shipperId ? "SHIPPER" : "CARRIER",
-                content: o.message,
-                price: o.price
-            }));
-            setDisplayMessages(mappedOffers);
-        }
-    }, [session]);
-
-    // Use socket messages only for initial playback (before user interacts)
-    useEffect(() => {
-        if (socketMessages.length > 0 && !socketInitialized) {
-            setSocketInitialized(true);
-            setDisplayMessages(socketMessages);
-        }
-    }, [socketMessages]);
-
+    // Graph data formatting
     useEffect(() => {
         const rounds: Record<number, any> = {};
         displayMessages.forEach((m, idx) => {
@@ -59,64 +61,65 @@ export default function NegotiationSessionPage() {
         setGraphData(Object.values(rounds));
     }, [displayMessages]);
 
-    const [isProcessing, setIsProcessing] = useState(false);
+    // Handle user sending a message — show their message, then "AI" responds
+    const handleSendMessage = (message: string, price: number) => {
+        if (isProcessing || dealConfirmed) return;
 
-    const handleSendMessage = async (message: string, price: number) => {
-        if (!id || isProcessing) return;
+        // Add user's actual typed message as SHIPPER
+        const shipperMsg = { role: "SHIPPER", content: message, price: price || 0 };
+        setDisplayMessages(prev => [...prev, shipperMsg]);
 
-        const userRole = (user?.role === "CARRIER" ? "CARRIER" : "SHIPPER") as "SHIPPER" | "CARRIER";
+        // Check if there are more carrier responses
+        const nextIdx = carrierIndexRef.current;
+        if (nextIdx < CARRIER_RESPONSES.length) {
+            setIsProcessing(true);
+            // Simulate AI "thinking" delay
+            setTimeout(() => {
+                const carrierMsg = { role: "CARRIER", ...CARRIER_RESPONSES[nextIdx] };
+                setDisplayMessages(prev => [...prev, carrierMsg]);
+                carrierIndexRef.current = nextIdx + 1;
+                setIsProcessing(false);
 
-        // Optimistically show the user's own message immediately
-        setDisplayMessages((prev) => [...prev, { role: userRole, content: message, price }]);
-
-        setIsProcessing(true);
-        try {
-            const aiResponse = await negotiationApi.chat({
-                negotiationId: id as string,
-                message,
-                price,
-                role: userRole,
-            });
-
-            // Add AI counter-offer directly from REST response
-            // (socket may also deliver it, but this ensures it always shows)
-            if (aiResponse?.content) {
-                setDisplayMessages((prev) => [
-                    ...prev,
-                    { role: aiResponse.role, content: aiResponse.content, price: aiResponse.price },
-                ]);
-            }
-        } catch (error) {
-            console.error("Failed to send message:", error);
-            // Remove optimistic message on failure
-            setDisplayMessages((prev) => prev.slice(0, -1));
-        } finally {
-            setIsProcessing(false);
+                // If this was the last carrier response, mark deal as confirmed
+                if (nextIdx === CARRIER_RESPONSES.length - 1) {
+                    setDealConfirmed(true);
+                }
+            }, 1500 + Math.random() * 1000); // 1.5-2.5s delay for realism
         }
     };
 
-    const currentPrice = displayMessages.length > 0 ? displayMessages[displayMessages.length - 1].price : (session?.basePrice || 0);
+    const session = MOCK_SESSION;
+    const currentPrice = displayMessages.length > 0
+        ? displayMessages.filter(m => (m.price ?? 0) > 0).at(-1)?.price ?? 0
+        : session.basePrice;
+    const lastCarrierPrice = [...displayMessages].reverse().find(m => m.role === "CARRIER" && (m.price ?? 0) > 0)?.price ?? 0;
+    const gap = lastCarrierPrice && session.targetPrice ? lastCarrierPrice - session.targetPrice : null;
+    const currentRound = Math.ceil(displayMessages.length / 2);
+    const maxRounds = session.maxRounds;
 
     return (
         <div className="min-h-screen bg-black text-foreground pb-20 selection:bg-primary/30">
-            {/* Header Area */}
             <div className="py-10 px-6 md:px-12 lg:px-24 max-w-[1600px] mx-auto">
                 <div className="flex flex-col gap-8 mb-16">
-                    {/* Top Top Bar */}
+                    {/* Top Bar */}
                     <div className="flex items-center justify-between">
                         <Link href="/dashboard/shipper">
                             <div className="w-12 h-12 rounded-full glass border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all group">
                                 <ArrowLeft className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
                             </div>
                         </Link>
-
                         <div className="flex items-center gap-6">
                             <div className="px-4 py-2 rounded-lg bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Session: <span className="text-white">{id?.toString().toUpperCase()}</span></span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Session: <span className="text-white">{id?.toString().toUpperCase() || session.id}</span></span>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className={`w-2 h-2 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-red-500"}`} />
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white italic">Active Transmission</span>
+                                <div className="px-3 py-1 rounded-md bg-primary/20 border border-primary/30">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Simulated</span>
+                                </div>
+                                <div className={`w-2 h-2 rounded-full ${dealConfirmed ? "bg-emerald-400" : "bg-primary animate-pulse"}`} />
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white italic">
+                                    {dealConfirmed ? "Deal Closed" : "Active Transmission"}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -127,29 +130,32 @@ export default function NegotiationSessionPage() {
                                 Autonomous <br /> Negotiation
                             </h1>
                             <p className="text-white/30 text-xs font-black tracking-[0.4em] uppercase">
-                                AI AGENTS // PROTOCOL ID-8829-Z // {session?.shipment?.origin || "Loading..."} &gt; {session?.shipment?.destination || "Loading..."}
+                                AI AGENTS // PROTOCOL ID-8829-Z // {session.shipment.origin} &gt; {session.shipment.destination}
                             </p>
                         </div>
 
+                        {/* Current Price / Deal Confirmed Display */}
                         <div className="flex flex-col items-end gap-6">
-                            {session?.status === "COMPLETED" ? (
+                            {dealConfirmed ? (
                                 <motion.div
-                                    initial={{ scale: 0.9, opacity: 0 }}
+                                    initial={{ scale: 0.8, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
-                                    className="flex flex-col items-end gap-4"
+                                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                                    className="relative overflow-hidden rounded-[32px] min-w-[320px]"
                                 >
-                                    <div className="px-6 py-2 bg-primary/20 border border-primary/30 rounded-xl">
-                                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] italic">Negotiation Converged</span>
+                                    <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/10 to-emerald-500/20 animate-pulse" />
+                                    <div className="relative glass p-10 rounded-[32px] border-2 border-primary/50 shadow-[0_0_60px_rgba(255,184,0,0.25)]">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]" />
+                                            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 italic">Contract Confirmed</span>
+                                        </div>
+                                        <div className="text-7xl font-display font-black text-white italic tracking-tighter">
+                                            ${DEAL_PRICE.toLocaleString()}
+                                        </div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mt-3 italic">
+                                            Final Agreed Rate • {session.shipment.origin} → {session.shipment.destination}
+                                        </p>
                                     </div>
-                                    <Button variant="premium" size="lg" className="h-20 px-12 gap-4 text-xl" onClick={() => {
-                                        const agreed = displayMessages.length > 0
-                                            ? displayMessages[displayMessages.length - 1].price
-                                            : session?.targetPrice;
-                                        alert(`Contract awarded at $${agreed?.toLocaleString()}. Booking confirmed for ${session?.shipment?.origin} → ${session?.shipment?.destination}.`);
-                                    }}>
-                                        <CheckCircle className="w-6 h-6" />
-                                        Award Contract & Digital Booking
-                                    </Button>
                                 </motion.div>
                             ) : (
                                 <div className="glass glow-border p-8 rounded-[32px] min-w-[280px] bg-gradient-to-br from-zinc-900/50 to-black">
@@ -162,6 +168,44 @@ export default function NegotiationSessionPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Negotiation Status Bar */}
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex flex-wrap items-center gap-4 mb-8 px-6 py-4 rounded-2xl bg-zinc-900/40 border border-white/5 backdrop-blur-sm"
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Target</span>
+                        <span className="text-sm font-black text-primary italic">${session.targetPrice.toLocaleString()}</span>
+                    </div>
+                    <div className="w-px h-5 bg-white/10" />
+                    <div className="flex items-center gap-3">
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Carrier</span>
+                        <span className="text-sm font-black text-white italic">{lastCarrierPrice > 0 ? `$${lastCarrierPrice.toLocaleString()}` : "Awaiting..."}</span>
+                    </div>
+                    <div className="w-px h-5 bg-white/10" />
+                    <div className="flex items-center gap-3">
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Gap</span>
+                        <span className={`text-sm font-black italic ${gap !== null ? (gap > 0 ? "text-red-400" : "text-emerald-400") : "text-white/30"}`}>
+                            {gap !== null ? `$${Math.abs(gap).toLocaleString()}` : "—"}
+                        </span>
+                    </div>
+                    <div className="w-px h-5 bg-white/10" />
+                    <div className="flex items-center gap-3">
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Round</span>
+                        <span className="text-sm font-black text-white italic">{currentRound}<span className="text-white/30">/{maxRounds}</span></span>
+                    </div>
+                    <div className="ml-auto">
+                        <div className="flex items-center gap-2">
+                            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden" style={{ width: 80 }}>
+                                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min((currentRound / maxRounds) * 100, 100)}%` }} />
+                            </div>
+                            <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{Math.round((currentRound / maxRounds) * 100)}%</span>
+                        </div>
+                    </div>
+                </motion.div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
                     <div className="lg:col-span-8 flex flex-col gap-8">
@@ -181,7 +225,7 @@ export default function NegotiationSessionPage() {
                                 </div>
                             </div>
                             <div className="h-[400px]">
-                                <PriceGraph data={graphData} targetPrice={session?.targetPrice || 10500} />
+                                <PriceGraph data={graphData} targetPrice={session.targetPrice} />
                             </div>
                         </div>
 
@@ -192,9 +236,9 @@ export default function NegotiationSessionPage() {
                                     <Package className="w-4 h-4 text-primary" /> Cargo Manifest
                                 </h3>
                                 <div className="space-y-8">
-                                    <Detail label="Classification" value={session?.shipment?.cargoType || "Standard Freight"} />
-                                    <Detail label="Net Weight" value={`${session?.shipment?.weight?.toLocaleString() || "0"}kg`} />
-                                    <Detail label="Priority Tier" value={session?.priority || "High Magnitude"} />
+                                    <Detail label="Classification" value={session.shipment.cargoType} />
+                                    <Detail label="Net Weight" value={`${session.shipment.weight.toLocaleString()}kg`} />
+                                    <Detail label="Priority Tier" value={session.priority} />
                                 </div>
                             </div>
                             <div className="glass glow-border p-10 rounded-[32px] hover:border-primary/30 transition-colors bg-zinc-900/20 flex flex-col">
@@ -230,9 +274,12 @@ export default function NegotiationSessionPage() {
                     <div className="lg:col-span-4 h-full">
                         <ChatInterface
                             messages={displayMessages}
-                            negotiationId={id as string}
                             onSendMessage={handleSendMessage}
                             isProcessing={isProcessing}
+                            targetPrice={session.targetPrice}
+                            currentRound={currentRound}
+                            maxRounds={maxRounds}
+                            dealConfirmedPrice={dealConfirmed ? DEAL_PRICE : undefined}
                         />
                     </div>
                 </div>

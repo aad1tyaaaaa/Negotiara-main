@@ -18,7 +18,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         if (isHydrated && !user) {
             router.push("/auth/login");
         }
-    }, [isHydrated, user, router]);
+    }, [isHydrated, user, router]); // Adding router here is safe as it is stable, but we should be careful if it re-renders. Actually, next/navigation router IS stable.
+
 
     if (!isHydrated) {
         return (
